@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Daily Expense Tracker</title>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="styles/theme.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="branding">
+        <h1>Daily Expense Tracker</h1>
+        <p>Track where your money goes, one day at a time 💸</p>
+      </div>
+
+      <div class="header-right">
+        <!-- Theme toggle -->
+        <button id="themeToggle" class="btn-icon" aria-label="Toggle theme">
+          🌞
+        </button>
+
+        <!-- Auth area (top-right) -->
+        <nav class="auth-nav" id="authNav">
+          <button class="btn-ghost" id="loginBtn">Login</button>
+          <button class="btn-outline" id="signupBtn">Sign up</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Add Expense Card -->
+    <section class="card form-card">
+      <h2>Add New Expense</h2>
+      <form id="expenseForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="title">Title</label>
+            <input id="title" type="text" placeholder="e.g. Coffee, Bus, Netflix" required />
+          </div>
+
+          <div class="form-group">
+            <label for="amount">Amount (₹)</label>
+            <input id="amount" type="number" min="0" step="0.01" placeholder="e.g. 120" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" required>
+              <option value="">Select category</option>
+              <option value="Food">Food</option>
+              <option value="Travel">Travel</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="date">Date</label>
+            <input id="date" type="date" required />
+          </div>
+        </div>
+
+        <div class="form-row form-row-bottom">
+          <label class="checkbox-label">
+            <input type="checkbox" id="recurring" />
+            <span>Repeat monthly (recurring)</span>
+          </label>
+
+          <button type="submit" class="btn-primary">Add Expense</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Summary + Budget + Chart (hidden initially) -->
+    <section class="card summary-card hidden">
+      <div class="summary-top">
+        <div>
+          <h2>Summary</h2>
+          <p class="summary-subtext" id="summarySubtitle">
+            No data yet
+          </p>
+        </div>
+
+        <div class="filter-tabs">
+          <button class="filter-btn active" data-range="all">All</button>
+          <button class="filter-btn" data-range="month">This Month</button>
+          <button class="filter-btn" data-range="today">Today</button>
+        </div>
+      </div>
+
+      <!-- Global monthly budget -->
+      <div class="budget-row">
+        <div class="budget-input-wrap">
+          <span class="summary-label">Global Monthly Budget</span>
+          <div class="budget-input-row">
+            <span class="currency">₹</span>
+            <input
+              type="number"
+              id="budgetInput"
+              placeholder="e.g. 10000"
+              min="0"
+            />
+            <button id="saveBudgetBtn" class="btn-chip">Save</button>
+          </div>
+        </div>
+
+        <div class="budget-status">
+          <span class="summary-label">Usage this month</span>
+          <div class="budget-bar-outer">
+            <div class="budget-bar-inner" id="budgetBar"></div>
+          </div>
+          <span class="budget-text" id="budgetText">No budget set</span>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Today's Total</span>
+          <span class="summary-value" id="todayTotal">₹0</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">This Month</span>
+          <span class="summary-value" id="monthTotal">₹0</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Expenses</span>
+          <span class="summary-value" id="allTimeTotal">₹0</span>
+        </div>
+      </div>
+
+      <h3 class="chart-title">Category-wise Spend</h3>
+      <canvas id="categoryChart" height="150"></canvas>
+    </section>
+
+    <!-- Category Limits + Insights -->
+    <section class="card limits-card hidden">
+      <div class="limits-header">
+        <h2>Category Limits & Insights</h2>
+        <button id="resetDataBtn" class="btn-ghost-small">
+          Reset all data
+        </button>
+      </div>
+
+      <div class="limits-layout">
+        <div class="limits-col">
+          <h3>Monthly Limits per Category</h3>
+          <div class="category-limits" id="categoryLimitsContainer">
+            <!-- Populated by JS -->
+          </div>
+          <button id="saveCategoryLimitsBtn" class="btn-chip mt-8">
+            Save category limits
+          </button>
+        </div>
+
+        <div class="insights-col">
+          <h3>Insights</h3>
+          <ul id="insightsList" class="insights-list">
+            <!-- Insights from JS -->
+          </ul>
+
+          <div class="export-row">
+            <button id="exportCsvBtn" class="btn-outline-light">
+              Export as CSV
+            </button>
+            <label class="btn-outline-light file-label">
+              Import CSV
+              <input type="file" id="importCsvInput" accept=".csv" hidden />
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar View -->
+    <section class="card calendar-card hidden">
+      <div class="calendar-header">
+        <h2>Calendar View</h2>
+        <div class="calendar-nav">
+          <button id="prevMonthBtn" class="btn-ghost-small">‹</button>
+          <span id="calendarMonthLabel" class="calendar-month-label"></span>
+          <button id="nextMonthBtn" class="btn-ghost-small">›</button>
+        </div>
+      </div>
+
+      <div class="calendar-grid" id="calendarGrid">
+        <!-- JS renders days -->
+      </div>
+
+      <p class="calendar-note">
+        Click a date to filter the expenses table for that day.
+      </p>
+    </section>
+
+    <!-- Expense Table -->
+    <section class="card table-card hidden">
+      <div class="table-header">
+        <h2>All Expenses</h2>
+        <div class="table-controls">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by title or category..."
+          />
+          <button id="clearFiltersBtn" class="btn-ghost-small">
+            Clear filters
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Amount (₹)</th>
+              <th>Recurring</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody">
+            <!-- Rows from JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Edit Expense Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <button class="modal-close" id="closeEditModal">✕</button>
+      <h2>Edit Expense</h2>
+      <form id="editForm" class="auth-form">
+        <div class="form-group">
+          <label for="editTitle">Title</label>
+          <input id="editTitle" type="text" required />
+        </div>
+        <div class="form-group">
+          <label for="editAmount">Amount (₹)</label>
+          <input id="editAmount" type="number" min="0" step="0.01" required />
+        </div>
+        <div class="form-group">
+          <label for="editCategory">Category</label>
+          <select id="editCategory" required>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Bills">Bills</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editDate">Date</label>
+          <input id="editDate" type="date" required />
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="editRecurring" />
+            <span>Recurring monthly</span>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary full-width">Save changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="modal" id="authModal">
+    <div class="modal-content">
+      <button class="modal-close" id="closeAuthModal">✕</button>
+
+      <!-- Login -->
+      <div id="loginFormWrapper">
+        <h2>Login</h2>
+        <form id="loginForm" class="auth-form" autocomplete="off">
+          <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" placeholder="you@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input
+              id="loginPassword"
+              type="password"
+              placeholder="••••••••"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <button type="submit" class="btn-primary full-width">Login</button>
+          <p class="auth-switch">
+            Don’t have an account?
+            <button type="button" class="link-button" id="switchToSignup">Sign up</button>
+          </p>
+        </form>
+      </div>
+
+      <!-- Signup -->
+      <div id="signupFormWrapper" class="hidden">
+        <h2>Sign up</h2>
+        <form id="signupForm" class="auth-form" autocomplete="off">
+          <div class="form-group">
+            <label for="signupName">Name</label>
+            <input id="signupName" type="text" placeholder="Radhe" required />
+          </div>
+          <div class="form-group">
+            <label for="signupEmail">Email</label>
+            <input id="signupEmail" type="email" placeholder="you@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="signupPassword">Password</label>
+            <input
+              id="signupPassword"
+              type="password"
+              placeholder="Min 6 characters"
+              required
+              autocomplete="new-password"
+            />
+          </div>
+          <button type="submit" class="btn-primary full-width">Create Account</button>
+          <p class="auth-switch">
+            Already have an account?
+            <button type="button" class="link-button" id="switchToLogin">Login</button>
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Summary Popup -->
+  <div class="modal" id="daySummaryModal">
+    <div class="modal-content day-summary-card">
+      <button class="modal-close" id="closeDaySummary">✕</button>
+      <h3 id="daySummaryTitle">Date</h3>
+
+      <p class="day-total" id="daySummaryTotal">₹0</p>
+
+      <div id="dayCategoryBreakdown" class="day-breakdown">
+       <!-- Filled by JS -->
+      </div>
+
+      <p class="day-count" id="dayExpenseCount">0 expenses</p>
+    </div>
+  </div>
+  <!-- Toasts -->
+  <div id="toastContainer"></div>
+
+  <footer class="footer">
+    <p>Built by Priya</p>
+  </footer>
+
+  <!-- JS (order matters) -->
+  <script src="scripts/ui.js"></script>
+  <script src="scripts/theme.js"></script>
+  <script src="scripts/app.js"></script>
+  <script src="scripts/auth.js"></script>
+</body>
+</html>
